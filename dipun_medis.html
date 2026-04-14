@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dipun Medis</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;font-family:Arial}
+body{margin:0;background:#f1f5f9}
+.page{display:none;min-height:100vh;align-items:center;justify-content:center}
+.active{display:flex}
+.card{background:white;width:90%;max-width:600px;padding:22px;border-radius:18px;box-shadow:0 8px 25px rgba(0,0,0,0.08)}
+input,textarea{width:100%;padding:11px;margin:6px 0;border:1px solid #cbd5f5;border-radius:10px;background:#f8fafc}
+button{width:100%;padding:12px;background:#1e3a8a;color:white;border:none;border-radius:12px;margin-top:10px}
+h3{text-align:center;color:#1e293b}
+.logo{text-align:center;font-size:24px;margin-bottom:10px;color:#1e3a8a;font-weight:bold}
+.small-btn{font-size:12px;padding:6px;margin-top:10px;background:#64748b}
+.role-btn{background:#e2e8f0;color:#1e293b}
+.role-btn.active-role{background:#1e3a8a;color:white}
+.pass-wrap{position:relative}
+.eye{position:absolute;right:10px;top:12px;cursor:pointer}
+.shake{animation:shake 0.3s}
+@keyframes shake{0%{transform:translateX(0)}25%{transform:translateX(-5px)}50%{transform:translateX(5px)}75%{transform:translateX(-5px)}100%{transform:translateX(0)}}
+.table{width:100%;border-collapse:collapse;font-size:12px}
+.table th,.table td{border:1px solid #1e293b;padding:8px}
+.section{background:#e0e7ff;font-weight:bold}
+.list{max-height:200px;overflow:auto;border:1px solid #cbd5f5;padding:5px;border-radius:10px}
+.list div{padding:6px;border-bottom:1px solid #e2e8f0;cursor:pointer}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="s1" class="page active">
+<div class="card" id="loginCard">
+<div class="logo">🩺 Dipun Medis</div>
+<h3>Login sebagai:</h3>
+<div style="display:flex;gap:8px;margin-bottom:10px;justify-content:center">
+<button class="small-btn role-btn" id="btn_admin" onclick="setRole('admin')">Admin</button>
+<button class="small-btn role-btn" id="btn_dokter" onclick="setRole('dokter')">Dokter</button>
+<button class="small-btn role-btn" id="btn_perawat" onclick="setRole('perawat')">Perawat</button>
+</div>
+<input id="user" placeholder="Username">
+<div class="pass-wrap">
+<input id="pass" type="password" placeholder="Password">
+<span class="eye" onclick="togglePass()">👁️</span>
+</div>
+<button onclick="login()">Masuk</button>
+</div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="sDash" class="page">
+<div class="card">
+<div class="logo">🩺 Dipun Medis</div>
+<h3>Dashboard</h3>
+<p id="roleInfo"></p>
+<input id="search" placeholder="🔍 Cari pasien..." oninput="renderList()">
+<div id="list" class="list"></div>
+<button onclick="newData()">+ Input Pasien</button>
+<button class="small-btn" onclick="logout()">Logout</button>
+</div>
+</div>
+
+<!-- INPUT -->
+<div id="s2" class="page">
+<div class="card" style="max-height:90vh;overflow:auto">
+<h3>Input Data</h3>
+<input id="no_rm" readonly>
+<input id="nama" placeholder="Nama (wajib)">
+<input id="alamat" placeholder="Alamat (wajib)">
+<input id="ttl" placeholder="Tanggal Lahir (yyyy-mm-dd)">
+<input id="waktu" type="datetime-local">
+<textarea id="keluhan" placeholder="Keluhan (wajib)"></textarea>
+<textarea id="riwayat" placeholder="Riwayat"></textarea>
+<textarea id="periksa" placeholder="Pemeriksaan"></textarea>
+<textarea id="diagnosis" placeholder="Diagnosis"></textarea>
+<textarea id="observasi" placeholder="Observasi"></textarea>
+<textarea id="consent" placeholder="Persetujuan"></textarea>
+<input id="dokter" placeholder="Tenaga medis">
+<button onclick="toTable()">Simpan</button>
+<button class="small-btn" onclick="show('sDash')">Kembali</button>
+</div>
+</div>
+
+<!-- TABLE -->
+<div id="s3" class="page">
+<div class="card">
+<h3>Rekam Medis Pasien</h3>
+<div id="printArea">
+<table class="table">
+<tr><th colspan="2">Rekam Medis</th></tr>
+<tr><td>No RM</td><td id="o_no"></td></tr>
+<tr><td>Nama</td><td id="o_nama"></td></tr>
+<tr><td>Alamat</td><td id="o_alamat"></td></tr>
+<tr><td>Tanggal Lahir</td><td id="o_ttl"></td></tr>
+<tr><td>Waktu</td><td id="o_waktu"></td></tr>
+<tr><td>Keluhan</td><td id="o_keluhan"></td></tr>
+<tr><td>Riwayat</td><td id="o_riwayat"></td></tr>
+<tr><td>Pemeriksaan</td><td id="o_periksa"></td></tr>
+<tr><td>Diagnosis</td><td id="o_diagnosis"></td></tr>
+<tr><td>Observasi</td><td id="o_observasi"></td></tr>
+<tr><td>Persetujuan</td><td id="o_consent"></td></tr>
+<tr><td>Tenaga Medis</td><td id="o_dokter"></td></tr>
+</table>
+</div>
+<div onclick="exportPDF()">📄 Export PDF</div>
+<button onclick="show('sDash')">Kembali</button>
+</div>
+</div>
+
+<script>
+let role='';
+const akun={admin:{u:'admin',p:'admin123'},dokter:{u:'dokter',p:'dokterdipunmedis'},perawat:{u:'perawat',p:'perawatmedisdipun'}};
+let editIndex=null;
+
+function setRole(r){
+ role=r;
+ document.querySelectorAll('.role-btn').forEach(b=>b.classList.remove('active-role'));
+ document.getElementById('btn_'+r).classList.add('active-role');
+}
+
+function show(id){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.getElementById(id).classList.add('active')}
+function togglePass(){let p=document.getElementById('pass');p.type=p.type==='password'?'text':'password'}
+
+function login(){
+ let u=user.value,p=pass.value;
+ if(role && u===akun[role].u && p===akun[role].p){
+  roleInfo.innerText='Login sebagai '+role.toUpperCase();
+  show('sDash');renderList();
+ }else{
+  document.getElementById('loginCard').classList.add('shake');
+  setTimeout(()=>loginCard.classList.remove('shake'),300);
+ }
+}
+
+function logout(){show('s1')}
+
+function generateRM(){
+ let last=localStorage.getItem('rm')||0;last++;
+ localStorage.setItem('rm',last);
+ return 'RM-'+String(last).padStart(4,'0');
+}
+
+function newData(){
+ editIndex=null;
+ no_rm.value=generateRM();
+ document.querySelectorAll('#s2 input, #s2 textarea').forEach(i=>{if(i.id!='no_rm')i.value=''});
+ show('s2');
+}
+
+function val(id){return document.getElementById(id).value||'-'}
+
+function validTanggal(t){return /^\d{4}-\d{2}-\d{2}$/.test(t)}
+
+function toTable(){
+ if(!nama.value||!alamat.value||!ttl.value||!keluhan.value){alert('Isi data wajib');return}
+ if(!validTanggal(ttl.value)){alert('Format tanggal salah (yyyy-mm-dd)');return}
+ let data={no:val('no_rm'),nama:val('nama'),alamat:val('alamat'),ttl:val('ttl'),waktu:val('waktu'),keluhan:val('keluhan'),riwayat:val('riwayat'),periksa:val('periksa'),diagnosis:val('diagnosis'),observasi:val('observasi'),consent:val('consent'),dokter:val('dokter')};
+ let all=JSON.parse(localStorage.getItem('data')||'[]');
+ if(editIndex!==null) all[editIndex]=data; else all.push(data);
+ localStorage.setItem('data',JSON.stringify(all));
+ Object.keys(data).forEach(k=>{let el=document.getElementById('o_'+k);if(el)el.innerText=data[k]});
+ show('s3');
+}
+
+function renderList(){
+ let q=search.value.toLowerCase();
+ let all=JSON.parse(localStorage.getItem('data')||'[]');
+ list.innerHTML='';
+ all.forEach((d,i)=>{
+ if(d.nama.toLowerCase().includes(q)){
+ let div=document.createElement('div');
+ div.innerText=d.no+' - '+d.nama;
+ div.onclick=()=>loadData(i);
+ if(role==='admin'){
+ let del=document.createElement('span');
+ del.innerText=' ❌';
+ del.onclick=(e)=>{e.stopPropagation();deleteData(i)};
+ div.appendChild(del);
+ }
+ list.appendChild(div);
+ }
+ })
+}
+
+function deleteData(i){
+ if(role!=='admin'){alert('Hanya admin bisa hapus');return}
+ let all=JSON.parse(localStorage.getItem('data'));
+ all.splice(i,1);
+ localStorage.setItem('data',JSON.stringify(all));
+ renderList();
+}
+
+function loadData(i){
+ if(role==='perawat'){alert('Perawat tidak bisa edit');return}
+ let d=JSON.parse(localStorage.getItem('data'))[i];
+ editIndex=i;
+ for(let k in d){ if(document.getElementById(k)) document.getElementById(k).value=d[k] }
+ show('s2');
+}
+
+async function exportPDF(){
+ const canvas=await html2canvas(document.getElementById('printArea'),{scale:3});
+ const img=canvas.toDataURL('image/png');
+ const {jsPDF}=window.jspdf;
+ const pdf=new jsPDF();
+ pdf.addImage(img,'PNG',10,10,190,canvas.height*190/canvas.width);
+ pdf.save('rekam_medis.pdf');
+}
+</script>
+
+</body>
+</html>
